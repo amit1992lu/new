@@ -1,0 +1,16 @@
+.vscode/settings.json
+.DS_Store
+.vscode/settings.json
+.env
+node_modules
+reports
+Report
+report
+allure-Report
+Configuration
+SuiteRunShFiles
+allure-results
+FailedScreenshots
+package-lock.json
+screenshot
+customReport

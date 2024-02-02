@@ -1,0 +1,12 @@
+{
+
+  "parser": "@babel/eslint-parser",
+
+  "rules": {
+    "quotes": ["error", "single"],
+    "no-trailing-spaces": 1,
+    "no-multiple-empty-lines": [1, {"max": 2}],
+    "no-dupe-class-members": "error"
+  }
+
+}

@@ -1,0 +1,77 @@
+pipeline {
+    agent none
+    stages {
+        stage('Clone') {
+	        when { not { expression { params.skip_build } } }
+            agent { label 'master' }
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name:  '*/development']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'project']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'f1e5be32-dda9-4378-85c8-9570db19028e', url: 'https://github.com/Univar/ecommerce-qa-automation-webdriverio.git' ]]])
+            }
+        }
+
+        stage('Build Docker Image') {
+	        when { not { expression { params.skip_build } } }
+            agent { label 'master' }
+            steps {
+                sh '''
+                    cd project
+                    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 601697125460.dkr.ecr.us-east-1.amazonaws.com
+                    docker build -t mytest -f Dockerfile .
+                    '''
+            }
+        }
+
+
+        stage ('Deploy') {
+	        when { not { expression { params.skip_build } } }
+            agent {
+                docker {
+                    label 'master'
+                    image 'mytest'
+                }
+            }
+            steps {
+                script {
+                    try {
+                        withCredentials([string(credentialsId: 'slack_bot_token_shop', variable: 'SLACK_BOT_TOKEN')]) {
+                            sh '''
+                            set +x
+                            npm i && npm run ${Region} --DEVICE_FARM=true --ENV=${Env} --SUITE=${Suite} --SLACK=${Slack}
+                            '''
+                        }
+                    } catch (Exception e) {
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
+            }
+        }
+
+        stage ('Zeyphr') {
+            when { not { expression { params.skip_build } } }
+            agent {
+                docker {
+                    label 'master'
+                    image 'mytest'
+                }
+            }
+            steps {
+                script {
+                    try {
+                            sh'''
+                            npm run merge-reports && npm run upload_smoke --REGION=${Region} --DEVICE_FARM=true --SLACK=false --ZEYPHR=${Zeyphr}
+                            '''
+                    } catch (Exception e) {
+                        currentBuild.result = 'SUCCESS'
+                    }
+                }
+            }
+        }
+
+        stage('Clean WorkSpace') {
+            agent { label 'master' }
+            steps {
+                cleanWs()
+            }
+        }
+    }
+}
